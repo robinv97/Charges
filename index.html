@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mes Charges" />
+  <title>Mes Charges Fixes — Suivi Personnel</title>
+
+  <!-- Police Inter pour une lisibilité financière optimale -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Ajustements ergonomiques mobile */
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom, 24px);
+    }
+
+    /* Masquer les barres de défilement horizontales des filtres */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Animation fluide pour tiroir / modale */
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0.5; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Switch toggle personnalisé */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #10b981;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #10b981;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center selection:bg-indigo-100">
+
+  <!-- Conteneur principal centré format mobile/tablette -->
+  <div class="w-full max-w-lg min-h-screen bg-slate-50 flex flex-col shadow-sm relative pb-24">
+
+    <!-- EN-TÊTE -->
+    <header class="sticky top-0 z-20 bg-slate-900 text-white px-5 pt-5 pb-4 rounded-b-3xl shadow-md">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Budget Personnel</p>
+          <h1 class="text-xl font-bold tracking-tight flex items-center gap-2">
+            <span>Mes Charges Fixes</span>
+          </h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Bouton Guide Installation PWA -->
+          <button onclick="openModal('installModal')" title="Installer sur mon téléphone"
+            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-slate-200 flex items-center gap-1.5 text-xs font-medium">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <span class="hidden sm:inline">Installer</span>
+          </button>
+
+          <!-- Bouton Sauvegarde / CSV -->
+          <button onclick="openModal('dataModal')" title="Exporter / Importer CSV"
+            class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 transition text-slate-200">
+            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- CARTE SYNTHÈSE PRINCIPALE -->
+      <div class="mt-4 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-2xl p-4 shadow-inner border border-indigo-500/30">
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-xs font-medium text-indigo-200">Total lissé / mois</span>
+            <div id="kpiMonthlyTotal" class="text-3xl font-extrabold tracking-tight mt-0.5">0,00 €</div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs font-medium text-indigo-200">Coût annuel</span>
+            <div id="kpiAnnualTotal" class="text-lg font-bold text-white mt-0.5">0,00 €</div>
+          </div>
+        </div>
+
+        <!-- Détail prélèvements directs vs provision -->
+        <div class="grid grid-cols-2 gap-2.5 mt-4 pt-3 border-t border-indigo-500/40 text-xs">
+          <div class="bg-indigo-950/35 rounded-xl p-2.5">
+            <div class="text-indigo-200 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+              Prélèvements mensuels
+            </div>
+            <div id="kpiDirectMonthly" class="font-bold text-sm text-white mt-1">0,00 €</div>
+          </div>
+          <div class="bg-indigo-950/35 rounded-xl p-2.5">
+            <div class="text-indigo-200 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+              Provision (annuel/trim.)
+            </div>
+            <div id="kpiProvisionMonthly" class="font-bold text-sm text-white mt-1">0,00 €</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENU PRINCIPAL (ONGLETS VUES) -->
+    <main class="flex-1 px-4 pt-4 space-y-5">
+
+      <!-- VUE 1 : LISTE DES CHARGES -->
+      <section id="viewList" class="space-y-4">
+
+        <!-- Barre de recherche & Tri -->
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input type="text" id="searchInput" oninput="renderApp()" placeholder="Rechercher un abonnement, prêt..."
+              class="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+          </div>
+
+          <select id="sortSelect" onchange="renderApp()" aria-label="Trier par"
+            class="bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="amount_desc">Montant ↓</option>
+            <option value="day_asc">Jour (1-31)</option>
+            <option value="name_asc">Nom (A-Z)</option>
+          </select>
+        </div>
+
+        <!-- Filtres Catégories (Défilement horizontal tactile) -->
+        <div id="categoryChips" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          <!-- Généré dynamiquement -->
+        </div>
+
+        <!-- Filtre Statut rapide + Compteur -->
+        <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+          <div class="flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+            <button onclick="setStatusFilter('ALL')" data-status="ALL" class="status-tab px-2.5 py-1 rounded-lg font-medium transition bg-white text-slate-900 shadow-xs">Tous</button>
+            <button onclick="setStatusFilter('Actif')" data-status="Actif" class="status-tab px-2.5 py-1 rounded-lg font-medium transition text-slate-600">Actifs</button>
+            <button onclick="setStatusFilter('En pause')" data-status="En pause" class="status-tab px-2.5 py-1 rounded-lg font-medium transition text-slate-600">En pause</button>
+          </div>
+          <span id="itemsCountLabel" class="font-medium">0 charge</span>
+        </div>
+
+        <!-- Liste des cartes de charges -->
+        <div id="chargesListContainer" class="space-y-3">
+          <!-- Généré dynamiquement -->
+        </div>
+      </section>
+
+      <!-- VUE 2 : ANALYSE PAR CATÉGORIE -->
+      <section id="viewStats" class="hidden space-y-4">
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-slate-800 text-base">Répartition par catégorie</h2>
+            <span class="text-xs text-slate-400">Charges actives</span>
+          </div>
+          <div id="categoryBreakdownContainer" class="space-y-3.5">
+            <!-- Généré dynamiquement -->
+          </div>
+        </div>
+
+        <!-- Encart Simulation / Économies potentielles -->
+        <div id="pausedSummaryCard" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div class="flex items-start gap-3">
+            <div class="p-2 bg-amber-100 rounded-xl text-amber-700">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-amber-900">Économie simulée (charges en pause)</h3>
+              <p class="text-xs text-amber-800 mt-0.5">
+                En résiliant vos charges actuellement « En pause », vous économisez
+                <strong id="pausedMonthlySavings">0,00 € / mois</strong> soit
+                <strong id="pausedAnnualSavings">0,00 € / an</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- BARRE DE NAVIGATION INFÉRIEURE FIXE -->
+    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-2.5 flex items-center justify-between z-30">
+      <button onclick="switchTab('list')" id="navBtnList" class="flex flex-col items-center gap-1 text-indigo-600 font-semibold text-xs py-1 px-3 rounded-xl transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+        </svg>
+        <span>Mes charges</span>
+      </button>
+
+      <!-- Bouton central proéminent "+ Ajouter" -->
+      <button onclick="openChargeForm()"
+        class="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-lg shadow-indigo-600/30 transition -mt-5">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        <span>Ajouter</span>
+      </button>
+
+      <button onclick="switchTab('stats')" id="navBtnStats" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 font-medium text-xs py-1 px-3 rounded-xl transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+        </svg>
+        <span>Répartition</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE 1 : AJOUT / ÉDITION D'UNE CHARGE                               -->
+  <!-- ===================================================================== -->
+  <div id="chargeModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h2 id="formModalTitle" class="text-lg font-bold text-slate-900">Nouvelle charge fixe</h2>
+        <button onclick="closeModal('chargeModal')" class="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form id="chargeForm" onsubmit="saveCharge(event)" class="space-y-4 mt-4">
+        <input type="hidden" id="fieldId" />
+
+        <!-- Nom -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nom de la charge / abonnement *</label>
+          <input type="text" id="fieldName" required placeholder="Ex : Prêt Immobilier, Netflix, Assurance Auto..."
+            class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <!-- Catégorie & Statut -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Catégorie *</label>
+            <select id="fieldCategory" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Logement">🏠 Logement</option>
+              <option value="Prêt">🏦 Prêt</option>
+              <option value="Assurance">🛡️ Assurance</option>
+              <option value="Abonnement">📱 Abonnement</option>
+              <option value="Énergie">⚡ Énergie</option>
+              <option value="Impôts">🏛️ Impôts</option>
+              <option value="Autre">📦 Autre</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Statut *</label>
+            <select id="fieldStatus" onchange="updateFormPreview()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Actif">Actif</option>
+              <option value="En pause">En pause (simulation)</option>
+              <option value="Résilié">Résilié</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Montant & Périodicité -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Montant prélevé (€) *</label>
+            <input type="number" id="fieldAmount" step="0.01" min="0" required placeholder="0.00" oninput="updateFormPreview()"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Périodicité *</label>
+            <select id="fieldFrequency" onchange="updateFormPreview()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="Mensuel">Mensuel</option>
+              <option value="Trimestriel">Trimestriel</option>
+              <option value="Semestriel">Semestriel</option>
+              <option value="Annuel">Annuel</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Jour de prélèvement & Date de fin -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Jour de prélèvement (1-31)</label>
+            <input type="number" id="fieldDay" min="1" max="31" placeholder="Ex : 5"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Date de fin (optionnel)</label>
+            <input type="date" id="fieldEndDate"
+              class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+        </div>
+
+        <!-- Aperçu automatique en direct -->
+        <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3.5 flex items-center justify-between">
+          <div>
+            <span class="text-xs text-indigo-700 font-medium block">Équivalent mensuel lissé</span>
+            <span id="previewMonthly" class="text-base font-extrabold text-indigo-950">0,00 € / mois</span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-indigo-700 font-medium block">Impact annuel</span>
+            <span id="previewAnnual" class="text-sm font-bold text-indigo-900">0,00 € / an</span>
+          </div>
+        </div>
+
+        <!-- Boutons d'action -->
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" id="btnDeleteCharge" onclick="deleteCurrentCharge()"
+            class="hidden px-4 py-3 rounded-xl bg-rose-50 text-rose-600 font-semibold text-sm hover:bg-rose-100 transition">
+            Supprimer
+          </button>
+          <button type="submit"
+            class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md shadow-indigo-600/20 transition">
+            Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE 2 : EXPORT / IMPORT CSV (COMPATIBLE GOOGLE SHEETS & EXCEL)     -->
+  <!-- ===================================================================== -->
+  <div id="dataModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl animate-slide-up space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h2 class="text-lg font-bold text-slate-900">Données & Sauvegarde</h2>
+        <button onclick="closeModal('dataModal')" class="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Vos données sont enregistrées automatiquement sur votre téléphone. Vous pouvez les exporter au format <strong>CSV</strong> (directement compatible avec la structure Google Sheets / Excel) pour les sauvegarder ou les analyser sur ordinateur.
+      </p>
+
+      <div class="space-y-2.5">
+        <button onclick="exportToCSV()" class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 transition">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-emerald-600 text-white rounded-xl">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold">Exporter en CSV (Tableur)</div>
+              <div class="text-xs text-emerald-700">Compatible Google Sheets & Excel</div>
+            </div>
+          </div>
+          <span class="text-xs font-semibold">Télécharger →</span>
+        </button>
+
+        <label class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 transition cursor-pointer">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-600 text-white rounded-xl">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+            </div>
+            <div class="text-left">
+              <div class="text-sm font-bold">Importer un fichier CSV</div>
+              <div class="text-xs text-indigo-700">Restaurer ou charger depuis votre tableur</div>
+            </div>
+          </div>
+          <span class="text-xs font-semibold">Choisir →</span>
+          <input type="file" accept=".csv" onchange="importFromCSV(event)" class="hidden" />
+        </label>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+        <button onclick="resetDemoData()" class="text-xs font-medium text-slate-500 hover:text-indigo-600 underline">
+          Charger des exemples
+        </button>
+        <button onclick="clearAllData()" class="text-xs font-medium text-rose-600 hover:text-rose-700 underline">
+          Tout effacer (liste vide)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE 3 : GUIDE INSTALLATION SUR TÉLÉPHONE (PWA)                     -->
+  <!-- ===================================================================== -->
+  <div id="installModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl animate-slide-up space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h2 class="text-lg font-bold text-slate-900">Installer sur mon téléphone</h2>
+        <button onclick="closeModal('installModal')" class="p-2 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-600">
+        Une fois cette page hébergée gratuitement (ex. GitHub Pages, Netlify Drop ou Vercel), vous pouvez l'installer comme une vraie application mobile sans passer par un store :
+      </p>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="font-bold text-slate-900 text-sm mb-1">🍎 Sur iPhone (Safari)</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-600">
+            <li>Ouvrez cette page dans <strong>Safari</strong>.</li>
+            <li>Appuyez sur le bouton <strong>Partager</strong> (carré avec flèche vers le haut) en bas de l'écran.</li>
+            <li>Faites défiler et appuyez sur <strong>« Sur l'écran d'accueil »</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="font-bold text-slate-900 text-sm mb-1">🤖 Sur Android (Chrome)</div>
+          <ol class="list-decimal list-inside space-y-1 text-slate-600">
+            <li>Ouvrez cette page dans <strong>Google Chrome</strong>.</li>
+            <li>Appuyez sur le menu <strong>⋮</strong> en haut à droite.</li>
+            <li>Appuyez sur <strong>« Ajouter à l'écran d'accueil »</strong> ou <strong>« Installer l'application »</strong>.</li>
+          </ol>
+        </div>
+      </div>
+
+      <button onclick="closeModal('installModal')" class="w-full py-3 rounded-xl bg-slate-900 text-white font-semibold text-sm">
+        J'ai compris
+      </button>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION TOAST -->
+  <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-full shadow-lg transition-opacity">
+    Message
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- LOGIQUE JAVASCRIPT DE L'APPLICATION                                   -->
+  <!-- ===================================================================== -->
+  <script>
+    // --- 1. MANIFESTE PWA DYNAMIQUE (Icône & Mode Standalone) ---
+    (function setupDynamicManifest() {
+      try {
+        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#4f46e5"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="240" fill="#ffffff">€</text></svg>`;
+        const iconUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgIcon)));
+        const manifest = {
+          name: 'Mes Charges Fixes',
+          short_name: 'Mes Charges',
+          description: 'Suivi personnel de mes abonnements et charges fixes',
+          start_url: '.',
+          display: 'standalone',
+          background_color: '#f8fafc',
+          theme_color: '#0f172a',
+          icons: [{ src: iconUrl, sizes: '512x512', type: 'image/svg+xml' }]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = URL.createObjectURL(blob);
+        document.head.appendChild(link);
+      } catch (e) {
+        console.warn('Manifeste dynamique non supporté dans cet environnement.', e);
+      }
+    })();
+
+    // --- 2. CONFIGURATION & DONNÉES INITIALES ---
+    const STORAGE_KEY = 'mes_charges_fixes_v1';
+
+    const CATEGORIES_META = {
+      'Logement':   { emoji: '🏠', badge: 'bg-blue-100 text-blue-800', bar: 'bg-blue-500' },
+      'Prêt':       { emoji: '🏦', badge: 'bg-indigo-100 text-indigo-800', bar: 'bg-indigo-500' },
+      'Assurance':  { emoji: '🛡️', badge: 'bg-emerald-100 text-emerald-800', bar: 'bg-emerald-500' },
+      'Abonnement': { emoji: '📱', badge: 'bg-purple-100 text-purple-800', bar: 'bg-purple-500' },
+      'Énergie':    { emoji: '⚡', badge: 'bg-amber-100 text-amber-800', bar: 'bg-amber-500' },
+      'Impôts':     { emoji: '🏛️', badge: 'bg-rose-100 text-rose-800', bar: 'bg-rose-500' },
+      'Autre':      { emoji: '📦', badge: 'bg-slate-200 text-slate-800', bar: 'bg-slate-500' }
+    };
+
+    const DEMO_CHARGES = [
+      { id: 'CHG-01', name: 'Prêt Immobilier', category: 'Prêt', amount: 920.00, frequency: 'Mensuel', day: 5, endDate: '2041-09-05', status: 'Actif' },
+      { id: 'CHG-02', name: 'Assurance Habitation', category: 'Assurance', amount: 264.00, frequency: 'Annuel', day: 12, endDate: '', status: 'Actif' },
+      { id: 'CHG-03', name: 'Électricité & Gaz', category: 'Énergie', amount: 115.00, frequency: 'Mensuel', day: 10, endDate: '', status: 'Actif' },
+      { id: 'CHG-04', name: 'Fibre Internet + Mobile', category: 'Abonnement', amount: 44.99, frequency: 'Mensuel', day: 8, endDate: '', status: 'Actif' },
+      { id: 'CHG-05', name: 'Assurance Auto', category: 'Assurance', amount: 145.00, frequency: 'Trimestriel', day: 15, endDate: '', status: 'Actif' },
+      { id: 'CHG-06', name: 'Taxe Foncière', category: 'Impôts', amount: 1140.00, frequency: 'Annuel', day: 15, endDate: '', status: 'Actif' },
+      { id: 'CHG-07', name: 'Streaming Vidéo 4K', category: 'Abonnement', amount: 19.99, frequency: 'Mensuel', day: 21, endDate: '', status: 'En pause' }
+    ];
+
+    let charges = [];
+    let selectedCategory = 'Toutes';
+    let selectedStatus = 'ALL';
+
+    // --- 3. CHARGEMENT & SAUVEGARDE ---
+    function loadCharges() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw === null) {
+          charges = [...DEMO_CHARGES];
+          persistCharges();
+        } else {
+          charges = JSON.parse(raw);
+        }
+      } catch (e) {
+        charges = [...DEMO_CHARGES];
+      }
+    }
+
+    function persistCharges() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(charges));
+      } catch (e) {
+        showToast('Erreur de sauvegarde locale');
+      }
+    }
+
+    // --- 4. FORMULES DE CALCUL (MENSUEL & ANNUEL LISSÉS) ---
+    function getMonthlyEquivalent(charge, ignoreStatus = false) {
+      if (!ignoreStatus && charge.status !== 'Actif') return 0;
+      const amt = parseFloat(charge.amount) || 0;
+      switch (charge.frequency) {
+        case 'Mensuel':     return amt;
+        case 'Trimestriel': return amt / 3;
+        case 'Semestriel':  return amt / 6;
+        case 'Annuel':      return amt / 12;
+        default:            return amt;
+      }
+    }
+
+    function getAnnualEquivalent(charge, ignoreStatus = false) {
+      return getMonthlyEquivalent(charge, ignoreStatus) * 12;
+    }
+
+    function formatEuro(value) {
+      return new Intl.NumberFormat('fr-FR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value || 0);
+    }
+
+    // --- 5. RENDU DE L'INTERFACE ---
+    function renderApp() {
+      renderKPIs();
+      renderCategoryChips();
+      renderChargesList();
+      renderCategoryBreakdown();
+    }
+
+    function renderKPIs() {
+      let totalMonthly = 0;
+      let directMonthly = 0;
+
+      charges.forEach(c => {
+        if (c.status === 'Actif') {
+          const m = getMonthlyEquivalent(c);
+          totalMonthly += m;
+          if (c.frequency === 'Mensuel') {
+            directMonthly += parseFloat(c.amount) || 0;
+          }
+        }
+      });
+
+      const provisionMonthly = Math.max(0, totalMonthly - directMonthly);
+      const totalAnnual = totalMonthly * 12;
+
+      document.getElementById('kpiMonthlyTotal').textContent = formatEuro(totalMonthly);
+      document.getElementById('kpiAnnualTotal').textContent = formatEuro(totalAnnual);
+      document.getElementById('kpiDirectMonthly').textContent = formatEuro(directMonthly);
+      document.getElementById('kpiProvisionMonthly').textContent = formatEuro(provisionMonthly);
+    }
+
+    function renderCategoryChips() {
+      const container = document.getElementById('categoryChips');
+      const allCats = ['Toutes', ...Object.keys(CATEGORIES_META)];
+
+      container.innerHTML = allCats.map(cat => {
+        const isSelected = selectedCategory === cat;
+        const meta = CATEGORIES_META[cat];
+        const label = meta ? `${meta.emoji} ${cat}` : 'Toutes';
+        const activeClass = isSelected
+          ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100';
+
+        return `<button onclick="setCategoryFilter('${cat}')"
+          class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border transition ${activeClass}">
+          ${label}
+        </button>`;
+      }).join('');
+    }
+
+    function renderChargesList() {
+      const container = document.getElementById('chargesListContainer');
+      const searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+      const sortBy = document.getElementById('sortSelect').value;
+
+      // Filtrage
+      let filtered = charges.filter(c => {
+        const matchCat = selectedCategory === 'Toutes' || c.category === selectedCategory;
+        const matchStatus = selectedStatus === 'ALL' || c.status === selectedStatus;
+        const matchSearch = !searchQuery ||
+          c.name.toLowerCase().includes(searchQuery) ||
+          c.category.toLowerCase().includes(searchQuery);
+        return matchCat && matchStatus && matchSearch;
+      });
+
+      // Tri
+      filtered.sort((a, b) => {
+        if (sortBy === 'amount_desc') {
+          return getMonthlyEquivalent(b, true) - getMonthlyEquivalent(a, true);
+        } else if (sortBy === 'day_asc') {
+          return (parseInt(a.day) || 99) - (parseInt(b.day) || 99);
+        } else {
+          return a.name.localeCompare(b.name, 'fr');
+        }
+      });
+
+      document.getElementById('itemsCountLabel').textContent =
+        `${filtered.length} ${filtered.length > 1 ? 'charges' : 'charge'}`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl p-8 text-center border border-dashed border-slate-300">
+            <p class="text-sm font-semibold text-slate-700">Aucune charge trouvée</p>
+            <p class="text-xs text-slate-400 mt-1">Modifiez vos filtres ou appuyez sur « + Ajouter ».</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(c => {
+        const meta = CATEGORIES_META[c.category] || CATEGORIES_META['Autre'];
+        const isActif = c.status === 'Actif';
+        const monthlyEq = getMonthlyEquivalent(c, true);
+        const isNonMonthly = c.frequency !== 'Mensuel';
+
+        const dayText = c.day ? `Le ${c.day} du mois` : '';
+        const endText = c.endDate ? `Fin : ${new Date(c.endDate).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}` : '';
+        const subMeta = [dayText, endText].filter(Boolean).join(' • ');
+
+        return `
+          <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs transition ${isActif ? '' : 'opacity-65 bg-slate-50'}">
+            <div class="flex items-start justify-between gap-3">
+              <!-- Zone cliquable pour éditer -->
+              <div onclick="openChargeForm('${c.id}')" class="flex-1 cursor-pointer">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md ${meta.badge}">
+                    ${meta.emoji} ${escapeHtml(c.category)}
+                  </span>
+                  ${c.status === 'En pause' ? '<span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">En pause</span>' : ''}
+                  ${c.status === 'Résilié' ? '<span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">Résilié</span>' : ''}
+                </div>
+
+                <h3 class="font-bold text-slate-900 text-sm mt-1.5">${escapeHtml(c.name)}</h3>
+
+                ${subMeta ? `<p class="text-[11px] text-slate-400 mt-0.5">${subMeta}</p>` : ''}
+              </div>
+
+              <!-- Montants & Interrupteur rapide -->
+              <div class="text-right flex flex-col items-end">
+                <div onclick="openChargeForm('${c.id}')" class="cursor-pointer">
+                  <div class="font-extrabold text-slate-900 text-base">
+                    ${formatEuro(c.amount)}
+                    <span class="text-[11px] font-medium text-slate-400">/${shortFreq(c.frequency)}</span>
+                  </div>
+                  ${isNonMonthly
+                    ? `<div class="text-[11px] font-semibold text-indigo-600">soit ${formatEuro(monthlyEq)}/mois</div>`
+                    : `<div class="text-[11px] text-slate-400">${formatEuro(monthlyEq * 12)}/an</div>`
+                  }
+                </div>
+
+                <!-- Switch Actif / En pause pour simulation -->
+                <button onclick="toggleChargeStatus('${c.id}')" title="Activer / Mettre en pause"
+                  class="mt-2.5 inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-lg border transition
+                  ${isActif ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'}">
+                  <span class="w-2 h-2 rounded-full ${isActif ? 'bg-emerald-500' : 'bg-slate-400'}"></span>
+                  ${isActif ? 'Actif' : 'Inactif'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCategoryBreakdown() {
+      const container = document.getElementById('categoryBreakdownContainer');
+      const totalsByCat = {};
+      let grandTotalMonthly = 0;
+      let pausedMonthly = 0;
+
+      charges.forEach(c => {
+        if (c.status === 'Actif') {
+          const m = getMonthlyEquivalent(c);
+          totalsByCat[c.category] = (totalsByCat[c.category] || 0) + m;
+          grandTotalMonthly += m;
+        } else if (c.status === 'En pause') {
+          pausedMonthly += getMonthlyEquivalent(c, true);
+        }
+      });
+
+      // Carte économies simulées
+      const pausedCard = document.getElementById('pausedSummaryCard');
+      if (pausedMonthly > 0) {
+        pausedCard.classList.remove('hidden');
+        document.getElementById('pausedMonthlySavings').textContent = `${formatEuro(pausedMonthly)} / mois`;
+        document.getElementById('pausedAnnualSavings').textContent = `${formatEuro(pausedMonthly * 12)} / an`;
+      } else {
+        pausedCard.classList.add('hidden');
+      }
+
+      const sortedCats = Object.entries(totalsByCat).sort((a, b) => b[1] - a[1]);
+
+      if (sortedCats.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">Aucune charge active à analyser.</p>`;
+        return;
+      }
+
+      container.innerHTML = sortedCats.map(([cat, monthlyVal]) => {
+        const meta = CATEGORIES_META[cat] || CATEGORIES_META['Autre'];
+        const pct = grandTotalMonthly > 0 ? Math.round((monthlyVal / grandTotalMonthly) * 100) : 0;
+
+        return `
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="font-semibold text-slate-800">${meta.emoji} ${cat}</span>
+              <span class="font-bold text-slate-900">${formatEuro(monthlyVal)}/mois <span class="text-slate-400 font-normal">(${pct}%)</span></span>
+            </div>
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full ${meta.bar} rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- 6. INTERACTIONS UTILISATEUR ---
+    function setCategoryFilter(cat) {
+      selectedCategory = cat;
+      renderApp();
+    }
+
+    function setStatusFilter(status) {
+      selectedStatus = status;
+      document.querySelectorAll('.status-tab').forEach(btn => {
+        if (btn.dataset.status === status) {
+          btn.className = 'status-tab px-2.5 py-1 rounded-lg font-medium transition bg-white text-slate-900 shadow-xs';
+        } else {
+          btn.className = 'status-tab px-2.5 py-1 rounded-lg font-medium transition text-slate-600';
+        }
+      });
+      renderChargesList();
+    }
+
+    function toggleChargeStatus(id) {
+      const idx = charges.findIndex(c => c.id === id);
+      if (idx === -1) return;
+      charges[idx].status = charges[idx].status === 'Actif' ? 'En pause' : 'Actif';
+      persistCharges();
+      renderApp();
+      showToast(charges[idx].status === 'Actif' ? 'Charge réactivée' : 'Charge mise en pause (simulation)');
+    }
+
+    function switchTab(tab) {
+      const viewList = document.getElementById('viewList');
+      const viewStats = document.getElementById('viewStats');
+      const btnList = document.getElementById('navBtnList');
+      const btnStats = document.getElementById('navBtnStats');
+
+      if (tab === 'list') {
+        viewList.classList.remove('hidden');
+        viewStats.classList.add('hidden');
+        btnList.classList.replace('text-slate-400', 'text-indigo-600');
+        btnStats.classList.replace('text-indigo-600', 'text-slate-400');
+      } else {
+        viewList.classList.add('hidden');
+        viewStats.classList.remove('hidden');
+        btnStats.classList.replace('text-slate-400', 'text-indigo-600');
+        btnList.classList.replace('text-indigo-600', 'text-slate-400');
+        renderCategoryBreakdown();
+      }
+    }
+
+    // --- 7. FORMULAIRE AJOUT / ÉDITION ---
+    function openChargeForm(id = null) {
+      const form = document.getElementById('chargeForm');
+      form.reset();
+      const deleteBtn = document.getElementById('btnDeleteCharge');
+
+      if (id) {
+        const c = charges.find(item => item.id === id);
+        if (!c) return;
+        document.getElementById('formModalTitle').textContent = 'Modifier la charge';
+        document.getElementById('fieldId').value = c.id;
+        document.getElementById('fieldName').value = c.name;
+        document.getElementById('fieldCategory').value = c.category;
+        document.getElementById('fieldStatus').value = c.status;
+        document.getElementById('fieldAmount').value = c.amount;
+        document.getElementById('fieldFrequency').value = c.frequency;
+        document.getElementById('fieldDay').value = c.day || '';
+        document.getElementById('fieldEndDate').value = c.endDate || '';
+        deleteBtn.classList.remove('hidden');
+      } else {
+        document.getElementById('formModalTitle').textContent = 'Nouvelle charge fixe';
+        document.getElementById('fieldId').value = '';
+        document.getElementById('fieldStatus').value = 'Actif';
+        document.getElementById('fieldFrequency').value = 'Mensuel';
+        deleteBtn.classList.add('hidden');
+      }
+
+      updateFormPreview();
+      openModal('chargeModal');
+    }
+
+    function updateFormPreview() {
+      const amount = parseFloat(document.getElementById('fieldAmount').value) || 0;
+      const frequency = document.getElementById('fieldFrequency').value;
+      const tempCharge = { amount, frequency, status: 'Actif' };
+      const m = getMonthlyEquivalent(tempCharge, true);
+      document.getElementById('previewMonthly').textContent = `${formatEuro(m)} / mois`;
+      document.getElementById('previewAnnual').textContent = `${formatEuro(m * 12)} / an`;
+    }
+
+    function saveCharge(e) {
+      e.preventDefault();
+      const existingId = document.getElementById('fieldId').value;
+      const payload = {
+        id: existingId || 'CHG-' + Date.now().toString().slice(-5),
+        name: document.getElementById('fieldName').value.trim(),
+        category: document.getElementById('fieldCategory').value,
+        status: document.getElementById('fieldStatus').value,
+        amount: parseFloat(document.getElementById('fieldAmount').value) || 0,
+        frequency: document.getElementById('fieldFrequency').value,
+        day: parseInt(document.getElementById('fieldDay').value) || '',
+        endDate: document.getElementById('fieldEndDate').value || ''
+      };
+
+      if (existingId) {
+        const idx = charges.findIndex(c => c.id === existingId);
+        if (idx !== -1) charges[idx] = payload;
+        showToast('Charge mise à jour');
+      } else {
+        charges.unshift(payload);
+        showToast('Nouvelle charge ajoutée');
+      }
+
+      persistCharges();
+      closeModal('chargeModal');
+      renderApp();
+    }
+
+    function deleteCurrentCharge() {
+      const id = document.getElementById('fieldId').value;
+      if (!id) return;
+      charges = charges.filter(c => c.id !== id);
+      persistCharges();
+      closeModal('chargeModal');
+      renderApp();
+      showToast('Charge supprimée');
+    }
+
+    // --- 8. EXPORT / IMPORT CSV (STRUCTURE GOOGLE SHEETS) ---
+    function exportToCSV() {
+      const headers = ['ID', 'Nom', 'Categorie', 'Montant', 'Periodicite', 'Jour_Prelevement', 'Date_Fin', 'Statut', 'Cout_Mensuel_Eq', 'Cout_Annuel_Eq'];
+      const rows = charges.map(c => {
+        const m = getMonthlyEquivalent(c).toFixed(2).replace('.', ',');
+        const a = getAnnualEquivalent(c).toFixed(2).replace('.', ',');
+        const amt = (parseFloat(c.amount) || 0).toFixed(2).replace('.', ',');
+        return [
+          c.id,
+          `"${(c.name || '').replace(/"/g, '""')}"`,
+          c.category,
+          `"${amt}"`,
+          c.frequency,
+          c.day || '',
+          c.endDate || '',
+          c.status,
+          `"${m}"`,
+          `"${a}"`
+        ].join(';');
+      });
+
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mes_charges_fixes_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Export CSV téléchargé');
+    }
+
+    function importFromCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+          if (lines.length < 2) throw new Error('Fichier vide');
+
+          const separator = lines[0].includes(';') ? ';' : ',';
+          const imported = [];
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(separator).map(val => val.replace(/^"|"$/g, '').trim());
+            if (cols.length >= 5 && cols[1]) {
+              const amount = parseFloat((cols[3] || '0').replace(',', '.')) || 0;
+              imported.push({
+                id: cols[0] || 'CHG-' + i,
+                name: cols[1],
+                category: CATEGORIES_META[cols[2]] ? cols[2] : 'Autre',
+                amount: amount,
+                frequency: ['Mensuel', 'Trimestriel', 'Semestriel', 'Annuel'].includes(cols[4]) ? cols[4] : 'Mensuel',
+                day: parseInt(cols[5]) || '',
+                endDate: cols[6] || '',
+                status: ['Actif', 'En pause', 'Résilié'].includes(cols[7]) ? cols[7] : 'Actif'
+              });
+            }
+          }
+
+          if (imported.length > 0) {
+            charges = imported;
+            persistCharges();
+            renderApp();
+            closeModal('dataModal');
+            showToast(`${imported.length} charges importées !`);
+          } else {
+            showToast('Aucune ligne valide trouvée dans le CSV');
+          }
+        } catch (err) {
+          showToast('Erreur lors de la lecture du fichier CSV');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function resetDemoData() {
+      charges = [...DEMO_CHARGES];
+      persistCharges();
+      renderApp();
+      closeModal('dataModal');
+      showToast('Données d’exemple restaurées');
+    }
+
+    function clearAllData() {
+      charges = [];
+      persistCharges();
+      renderApp();
+      closeModal('dataModal');
+      showToast('Liste vidée');
+    }
+
+    // --- 9. UTILITAIRES MODALES & UI ---
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function shortFreq(freq) {
+      const map = { 'Mensuel': 'mois', 'Trimestriel': 'trim.', 'Semestriel': 'sem.', 'Annuel': 'an' };
+      return map[freq] || freq;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    let toastTimeout;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => el.classList.add('hidden'), 2600);
+    }
+
+    // Initialisation au démarrage
+    window.addEventListener('DOMContentLoaded', () => {
+      loadCharges();
+      renderApp();
+    });
+  </script>
+</body>
+</html>
